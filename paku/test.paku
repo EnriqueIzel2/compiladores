@@ -1,30 +1,23 @@
 int x
-x = 1
-print(x)
-read(x)
-
-if( x > 10){
-    print(x)
-}else{
-    print(x)
-}
-
+int y
+int w
 int z
-z = 2
-print(z)
-int a
+float k
 
-if(z != 2){
+print(x)
+
+y = 89
+x = 11
+
+read(x)
+print(x)
+
+k = 5+6*(8/2)
+
+w = x + y + k
+
+if (w > x){
+    print(w)
+} else {
     print(z)
-}
-w = x + z * 2
-y = x + z + w
-print(y)
-
-if( z == 2) {
-    if (z != 2) {
-        print(z)
-    }else{
-        print(x)
-    }
 }

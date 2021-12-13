@@ -1,6 +1,3 @@
-#ifndef HASHTABLE_H
-#define HASHTABLE_H
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -95,5 +92,3 @@ void hash_remove(hashtable *hashtab,  char *key)
         listremove(templist, delnode);
     }
 }
-
-#endif

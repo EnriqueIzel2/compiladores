@@ -1,114 +1,211 @@
 %{
 #include <stdio.h>
+#include <stdbool.h>
 #include "hashtable.h"
-#include "astgen.h"
 extern FILE* yyin;
 
 void yyerror(char *s);
 int yylex(void);
 int yyparse();
-
-#define YYPARSE_PARAM astDest
-
 extern int yylineno;
 hashtable *htable;
 %}
 
 %union {
-    char *name;
-    double val;
-    char* op;
-    struct AstElement* ast;
+    char *s;
+    double d;
+    int b;
 }
 
 %locations
 
-%token EQUALS EOL END
+%token PLUS MINUS DIVIDE TIMES EQUALS TYPE EOL END
 %token P_LEFT P_RIGHT
 %token PRINT READ
 %token IF ELSE 
-%token O_KEY C_KEY 
+%token BRACES_LEFT BRACES_RIGHT 
+%token GREATER_THAN_EQUAL LESS_THAN_EQUAL NOT_EQUAL LESS_THAN GREATER_THAN EQUALS_DOUBLE
 
 %left P_LEFT P_RIGHT
+%left PLUS MINUS
+%left TIMES DIVIDE
 
-%token <val> NUMBER 
-%token <name> IDENTIFIER TYPE
-%token <op> OPERATOR
-%type<ast> program block statement statements if_stmt attribution  print_stmt read_stmt declaration expression EOL
-
+%token <d> NUMBER 
+%token <s> IDENTIFIER
+%type <d> IDENTIFIER_CALC CALC PRINT_EXP
 
 %%
 
-program: statements END { (*(struct AstElement**)astDest) = $1; YYACCEPT;};
-
-block: O_KEY statements C_KEY { $$ = $2; };
-
-statements:  statement {$$=0;}
-    | statements statement {$$=makeStatement($1, $2);}
-    | END
+PROGRAM:
+    STATEMENT END{YYACCEPT;}
     ;
 
-statement: 
-    declaration {$$=$1;}
-    | attribution {$$=$1;}
-    | if_stmt {$$=$1;}
-    | read_stmt {$$=$1;}
-    | print_stmt {$$=$1;}
-    | block {$$=$1;}
+STATEMENT:
+    LINE
+    | IF_STMT
+    | STATEMENT STATEMENT
+    ;
+
+LINE:
+    ATTRIBUTION
+    | PRINT_EXP
+    | READ_EXP
+    | DECLARATION
     | EOL
     ;
 
-if_stmt: IF P_LEFT expression P_RIGHT block EOL {$$=makeIf($3, $5, 0);}
-    | IF P_LEFT expression P_RIGHT block ELSE block EOL {$$=makeIf($3, $5, $7);}
+CONDITION:
+    IDENTIFIER LESS_THAN CALC
+    | IDENTIFIER LESS_THAN IDENTIFIER
+    | CALC LESS_THAN CALC
+    | CALC LESS_THAN IDENTIFIER 
+    | IDENTIFIER GREATER_THAN CALC
+    | IDENTIFIER GREATER_THAN IDENTIFIER
+    | CALC GREATER_THAN CALC
+    | CALC GREATER_THAN IDENTIFIER
+    | IDENTIFIER EQUALS_DOUBLE CALC
+    | IDENTIFIER EQUALS_DOUBLE IDENTIFIER
+    | CALC EQUALS_DOUBLE CALC
+    | CALC EQUALS_DOUBLE IDENTIFIER
+    | IDENTIFIER GREATER_THAN_EQUAL CALC
+    | IDENTIFIER GREATER_THAN_EQUAL IDENTIFIER
+    | CALC GREATER_THAN_EQUAL CALC
+    | CALC GREATER_THAN_EQUAL IDENTIFIER
+    | IDENTIFIER LESS_THAN_EQUAL CALC
+    | IDENTIFIER LESS_THAN_EQUAL IDENTIFIER
+    | CALC LESS_THAN_EQUAL CALC
+    | CALC LESS_THAN_EQUAL IDENTIFIER
+    | IDENTIFIER NOT_EQUAL CALC
+    | IDENTIFIER NOT_EQUAL IDENTIFIER
+    | CALC NOT_EQUAL CALC
+    | CALC NOT_EQUAL IDENTIFIER 
     ;
 
-attribution: IDENTIFIER EQUALS expression EOL {$$=makeAssignment($1, $3);}
+BLOCK:
+    BRACES_LEFT STATEMENT BRACES_RIGHT
     ;
 
-expression:
-    NUMBER {$$=makeExpByNum($1);}
-    | IDENTIFIER {$$=makeExpByName($1);}
-    | expression OPERATOR expression  {$$=makeExp($1, $3, $2);}
-    | P_LEFT expression P_RIGHT {$$=$2;}
+IF_STMT:
+    IF P_LEFT CONDITION P_RIGHT BLOCK
+    | IF P_LEFT CONDITION P_RIGHT BLOCK ELSE BLOCK
     ;
 
-print_stmt:
-    PRINT P_LEFT IDENTIFIER P_RIGHT EOL {$$=makePrint($3);}
-    ;
-read_stmt:
-    READ P_LEFT IDENTIFIER P_RIGHT EOL  {$$=makeRead($3);}
+ATTRIBUTION:
+    IDENTIFIER EQUALS CALC EOL {
+        Variable* variable = (Variable*)malloc(sizeof(Variable));
+        variable->value = $3;
+        hash_update(htable, $1, variable);
+    }
+    | IDENTIFIER EQUALS IDENTIFIER_CALC EOL {
+        Variable* variable = (Variable*)malloc(sizeof(Variable));
+        variable->value = $3;
+        hash_update(htable, $1, variable);}
     ;
 
-declaration:
-    TYPE IDENTIFIER EOL {$$=makeDeclaration($1,$2);}
+IDENTIFIER_CALC:
+    IDENTIFIER PLUS IDENTIFIER  {
+        $$ = hash_lookup(htable,$1)->value + hash_lookup(htable,$3)->value;}
+    | IDENTIFIER MINUS IDENTIFIER {
+        $$ = hash_lookup(htable,$1)->value - hash_lookup(htable,$3)->value;}
+    | IDENTIFIER DIVIDE IDENTIFIER {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = hash_lookup(htable,$1)->value / hash_lookup(htable,$3)->value;}
+    | IDENTIFIER TIMES IDENTIFIER {
+        $$ = hash_lookup(htable,$1)->value * hash_lookup(htable,$3)->value;}
+    | IDENTIFIER PLUS CALC {$$ = hash_lookup(htable,$1)->value + $3;}
+    | IDENTIFIER MINUS CALC {$$ = hash_lookup(htable,$1)->value - $3;}
+    | IDENTIFIER DIVIDE CALC {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = hash_lookup(htable,$1)->value / $3;}
+    | IDENTIFIER TIMES CALC {$$ = hash_lookup(htable,$1)->value * $3;}
+    | CALC PLUS IDENTIFIER {$$ = $1 + hash_lookup(htable,$3)->value;}
+    | CALC MINUS IDENTIFIER {$$ = $1 - hash_lookup(htable,$3)->value;}
+    | CALC DIVIDE IDENTIFIER {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = $1 / hash_lookup(htable,$3)->value;}
+    | CALC TIMES IDENTIFIER {$$ = $1 * hash_lookup(htable,$3)->value;}
+    | IDENTIFIER_CALC PLUS CALC {$$ = $1 + $3;}
+    | IDENTIFIER_CALC MINUS CALC {$$ = $1 - $3;}
+    | IDENTIFIER_CALC DIVIDE CALC {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = $1 / $3;}
+    | IDENTIFIER_CALC TIMES CALC {$$ = $1 * $3;}
+    | IDENTIFIER_CALC PLUS IDENTIFIER {$$ = $1 + hash_lookup(htable,$3)->value;}
+    | IDENTIFIER_CALC MINUS IDENTIFIER {$$ = $1 - hash_lookup(htable,$3)->value;}
+    | IDENTIFIER_CALC DIVIDE IDENTIFIER {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = $1 / hash_lookup(htable,$3)->value;}
+    | IDENTIFIER_CALC TIMES IDENTIFIER {$$ = $1 * hash_lookup(htable,$3)->value;}
+    ;
+
+CALC:
+    NUMBER
+    | CALC PLUS CALC {$$ = $1 + $3;}
+    | CALC MINUS CALC {$$ = $1 - $3;}
+    | CALC DIVIDE CALC {
+        if($3 == 0){
+            yyerror("zero division!");
+            YYABORT;
+        }
+        $$ = $1 / $3;}
+    | CALC TIMES CALC {$$ = $1 * $3;}
+    | P_LEFT CALC P_RIGHT {$$ = $2;}
+    ;
+
+PRINT_EXP:
+    PRINT P_LEFT IDENTIFIER P_RIGHT EOL { 
+        printf("print: %s: %d\n", $3, hash_lookup(htable,$3)->value);
+    }
+    ;
+
+READ_EXP:
+    READ P_LEFT IDENTIFIER P_RIGHT EOL { 
+        Variable* variable = (Variable*)malloc(sizeof(Variable));
+        variable->name = $3;
+        printf("Digite: \n");
+        scanf("%i", &variable->value );
+        hash_insert(htable,variable->name,variable);}
+    ; 
+ 
+DECLARATION:
+    TYPE IDENTIFIER EOL { 
+        Variable* variable = (Variable*)malloc(sizeof(Variable));
+        variable->name = $2;
+        variable->value = 0;
+        hash_insert(htable,variable->name,variable);}
     ;
 
 %%
 
-#include "astexec.h"
-
 void yyerror(char *s)
 {
-	printf("linha: %d :Error: %s\n", yylineno, s);
+	printf("Error: %s\n", s);
+    printf("Line: %d\n", yylineno);
 }
 
 int main(int argc, char *argv[])
 {
-    struct AstElement *a = 0;
     htable = hash_init(101);
-    // 1 para debug
-    #ifdef YYDEBUG
-        yydebug = 0;
-    #endif
-
     int result;
     yyin = fopen(argv[1], "r");
-    result = yyparse(&a);
+    result = yyparse();
     if (result == 0){
-        printf("compilado com sucesso \n");
-    } 
-
-    execStmt(htable, a);
- 
+        printf("Correct\n");
+    }
 	return 0;
 }

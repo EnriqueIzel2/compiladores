@@ -38,7 +38,7 @@
 # define YY_YY_PAKU_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 1
+# define YYDEBUG 0
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -49,21 +49,30 @@ extern int yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    EQUALS = 258,
-    EOL = 259,
-    END = 260,
-    P_LEFT = 261,
-    P_RIGHT = 262,
-    PRINT = 263,
-    READ = 264,
-    IF = 265,
-    ELSE = 266,
-    O_KEY = 267,
-    C_KEY = 268,
-    NUMBER = 269,
-    IDENTIFIER = 270,
-    TYPE = 271,
-    OPERATOR = 272
+    PLUS = 258,
+    MINUS = 259,
+    DIVIDE = 260,
+    TIMES = 261,
+    EQUALS = 262,
+    TYPE = 263,
+    EOL = 264,
+    END = 265,
+    P_LEFT = 266,
+    P_RIGHT = 267,
+    PRINT = 268,
+    READ = 269,
+    IF = 270,
+    ELSE = 271,
+    BRACES_LEFT = 272,
+    BRACES_RIGHT = 273,
+    GREATER_THAN_EQUAL = 274,
+    LESS_THAN_EQUAL = 275,
+    NOT_EQUAL = 276,
+    LESS_THAN = 277,
+    GREATER_THAN = 278,
+    EQUALS_DOUBLE = 279,
+    NUMBER = 280,
+    IDENTIFIER = 281
   };
 #endif
 
@@ -71,14 +80,13 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 17 "paku.y"
+#line 14 "paku.y"
 
-    char *name;
-    double val;
-    char* op;
-    struct AstElement* ast;
+    char *s;
+    double d;
+    int b;
 
-#line 82 "paku.tab.h"
+#line 90 "paku.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
